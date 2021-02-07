@@ -1,16 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Feb  2 15:50:02 2021
-
-@author: neshragh
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Nov 11 17:51:46 2020
-
-@author: neshragh
-"""
 
 # -*- coding: utf-8 -*-
 """
