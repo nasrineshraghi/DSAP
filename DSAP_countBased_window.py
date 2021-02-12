@@ -80,7 +80,7 @@ for k, col in zip(range(n_clusters_), colors):
 outs = 0
 outpoint = []
 
-windowsize = 10
+windowsize = 200
 while(stream.has_more_samples()):
     X = stream.next_sample(windowsize)
     a = X[0].reshape((-1,1))
