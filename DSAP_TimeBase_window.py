@@ -31,9 +31,10 @@ from skmultiflow.data.file_stream import FileStream
 start_time = time.time()
 from sklearn.metrics import davies_bouldin_score
 
+stream = FileStream("wifi.csv")
+
 
 df_dat = pd.read_csv('Wifi_test.csv')
-stream = FileStream("wifi.csv")
 df = df_dat.to_numpy() 
 ##################################################################
 ##open a dataset
