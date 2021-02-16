@@ -50,17 +50,6 @@ c = df[:,2].reshape((-1,1))
 start_time = c[199]
 time_period = 3600 #second
 X = np.concatenate((a,b), axis=1)
-#X = np.asarray(X)
-#X = X[0:200,0:2]
-
-#Choose data for algorithm
-#X= df_dat[:200]
-#plt.scatter(X[:,0],X[:,1])
-#plt.show()
-
-#labels_true = df.loc[df.index<90000,'Time'].to_numpy()
-
-
 
 # #############################################################################
 # Compute Affinity Propagation
@@ -101,7 +90,18 @@ def getwindowsize(start_time, time_period):
         idx2 = 0
     return idx2 - idx1
 
-windowsize = 10
+def getAdaptiveThreshold(D, idx): # idx is the index of closest center , D distance matrix of all data points and centers in window
+#        print(np.shape(X))
+#        print(np.shape(C))
+        cluster_idx = np.argmin(D, axis = 1) # index of the min in each row which blongs to cluster center
+#       print(np.shape(D))
+        DD = np.min(D, axis = 1) # value of the min in each row which blongs to cluster center
+        T = np.max(DD[cluster_idx == idx])
+        return T
+
+outs = 0
+outpoint = []
+leftOverSamples = None
 while(stream.has_more_samples()):
     windowsize = getwindowsize(start_time, time_period)
     start_time = start_time + time_period
@@ -109,52 +109,45 @@ while(stream.has_more_samples()):
         X = stream.next_sample(1)
         continue
     X = stream.next_sample(windowsize)
-    a = X[0].reshape((-1,1))
-    b = X[1].reshape((-1,1))
-    X = np.concatenate((a,b), axis=1)
-    if np.size(X, axis =0) < windowsize:
+    X = processNextSamples(X)
+    if np.size(X, axis =0) < windowsize: #count the x-->raws
         break
+
+    receiveddata = receiveddata[windowsize:]
+    receiveddata = np.concatenate((receiveddata, X))
+    
+    if leftOverSamples is not None:
+      X = np.concatenate((leftOverSamples , X))
+
+    D = distance_matrix(receiveddata, my_centers)
+    outs = 0
+    outpoint = []
     for i in range(windowsize):
         ed = [0]*n_clusters_   
         for kk in range(n_clusters_):            
-#            class_members = labels == kk
-#            cluster_center = X[cluster_centers_indices[kk]]
-#            print('cluster cent',cluster_center)
-#            print(str(i)+ ' '+ str(kk)+ ' '+ str(n_clusters_))
             ed[kk] = distance.euclidean(my_centers[kk,:],X[i])
-#            print(ed[k])
-            
-        if min(ed) >2.0:
+
+        idx = np.argmin(ed)
+        threshold = getAdaptiveThreshold(D, idx)
+        # print(threshold)
+        if min(ed) > threshold:
             outs = outs +1
             outpoint.append(X[i])
-            
-        if outs >= 80:   
-            Y=np.array(outpoint)
-#            cluster_center = X[cluster_centers_indices]
-           
-#            Y = np.concatenate((Y,my_centers))
-#        else:
-#            Y= np.array(cluster_center)
-            
+            print("TEST***************")
+        else:
+          branch = np.concatenate((branch , np.reshape(X[i,:],(-1,2))))
+          branch_label = np.concatenate((branch_label , np.reshape(idx,(-1))))
+
+    if outs > 0:
+        f = AffinityPropagation(preference=-1, damping=.7, max_iter= 100 ).fit(outpoint)
+        out_centers = f.cluster_centers_
+        if np.size(out_centers , axis = 0) == 0:
+          leftOverSamples = outpoint
+        else:
+          my_centers = np.concatenate((my_centers , out_centers))
+          leftOverSamples = None
 # =============================================================================
-#             plt.close('all')
-#             plt.figure(1)
-#             # ===============================================================
-#             plt.scatter(X[:,0],X[:,1], color='c',alpha=0.3,  linewidth=4)
-#             # ===============================================================
-#             colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-#             
-#             for k, col in zip(range(n_clusters_), colors):
-#                 class_members = labels == k
-#                 cluster_center = X[cluster_centers_indices[k]]
-#                 plt.plot(X[class_members, 0], X[class_members, 1], col + '+', markersize=8)
-#                 plt.plot(cluster_center[0], cluster_center[1], 's', markerfacecolor=col,
-#                          markeredgecolor='k', markersize=15)
-# =============================================================================
-            ###############################
-#            plt.clf()
-            #plt.scatter(Y[:, 0], Y[:, 1], color='m', alpha=0.1, linewidth=2)
-#            Y= outpoint[0:100,:]
+
             f = AffinityPropagation(preference=-1, damping=.93, max_iter= 100 ).fit(Y)
             abel_out = f.labels_
             
@@ -183,24 +176,7 @@ while(stream.has_more_samples()):
 #                    else:
 #                        fout = AffinityPropagation(preference=-1, damping=.93, max_iter= 100 ).fit(al)
 #                        abel_out = fout.labels_
-            if len(al)>0:
-                my_centers = al                   
-            
-            
-           
-            #print('Estimated number of clusters: %d' % n_cluster_)
-#            n_clus_ = len(cluster_centers_indice)
-#            for p, pol in zip(range(n_clus_), colors):
-#                class_member = label == p
-#                cluster_cente = Y[cluster_centers_indice[p]]
-##                plt.plot(Y[class_member, 0], Y[class_member, 1], pol + '+', markersize=8)                
-#                plt.plot(cluster_cente[0], cluster_cente[1], 'h', markerfacecolor=pol,
-##                         markeredgecolor='k', markersize=15)                
-#                F= Y[class_member, 0]
-#            plt.show()
-                        
-            outs = 0
-            outpoint = []
+
                
             ### Macro Cluster after AP restart
             
