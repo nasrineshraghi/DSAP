@@ -50,14 +50,14 @@ def getwindowsize(start_time, time_period):
         idx2 = 0
     return idx2 - idx1
 # calculate adaptive thresholds
-def getAdaptiveThreshold(D, idx): # idx is the index of closest center , D distance matrix of all data points and centers in window
-#        print(np.shape(X))
-#        print(np.shape(C))
-        cluster_idx = np.argmin(D, axis = 1) # index of the min in each row which blongs to cluster center
-#       print(np.shape(D))
-        DD = np.min(D, axis = 1) # value of the min in each row which blongs to cluster center
-        T = np.max(DD[cluster_idx == idx])
-        return T
+# def getAdaptiveThreshold(D, idx): # idx is the index of closest center , D distance matrix of all data points and centers in window
+# #        print(np.shape(X))
+# #        print(np.shape(C))
+#         cluster_idx = np.argmin(D, axis = 1) # index of the min in each row which blongs to cluster center
+# #       print(np.shape(D))
+#         DD = np.min(D, axis = 1) # value of the min in each row which blongs to cluster center
+#         T = np.max(DD[cluster_idx == idx])
+#         return T
 ##Read the stream out of Sckit multiflow #####################################
 #stream = FileStream("wifi.csv")
 #df_dat = pd.read_csv('Wifi_test.csv')
@@ -162,7 +162,7 @@ while(ght<15):
         break
     receiveddata = np.concatenate((receiveddata, X))
     
-    D = distance_matrix(receiveddata, my_centers)
+#     D = distance_matrix(receiveddata, my_centers)
     outs = 0
     outpoint = []
     for i in range(windowsize):
@@ -183,6 +183,7 @@ while(ght<15):
         Y=np.array(outpoint)        
         f = AffinityPropagation(preference=-8, damping=.95, max_iter= 100 ).fit(Y)
         out_centers = f.cluster_centers_
+        
         #abel_out = f.labels_
 #        my_centers = out_centers
         my_centers = np.append(my_centers,out_centers,axis=0)
