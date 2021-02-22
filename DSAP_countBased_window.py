@@ -26,7 +26,7 @@ from sklearn.metrics import davies_bouldin_score
 
 df_dat = pd.read_csv('wifi.csv')
 stream = FileStream("wifi.csv")
-
+# This is the test
 ##################################################################
 ##open a dataset
 #dc = pd.read_csv('week4event.csv')
