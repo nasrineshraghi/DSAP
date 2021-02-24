@@ -29,13 +29,12 @@ start_time = time.time()
 from sklearn.metrics import davies_bouldin_score
 from sklearn.metrics import pairwise_distances
 from scipy.spatial import distance_matrix
-import cProfile
-import re
 import matplotlib
 matplotlib.use('Qt5Agg')
-import numpy as np
-#########%%%%%%%%%%%%%%%%%%%%%%%%%%%%########################################
-# Creates landmark windows
+
+
+###################  Function defenitions #####################################
+
 def getwindowsize(start_time, time_period): 
     try:
         idx1 = np.where(df[:,2] >= start_time )[0][0] #first event, condition
@@ -51,13 +50,8 @@ def getAdaptiveThreshold(X,Y):
     epsilon = np.mean(distance.cdist(X,Y,'euclidean'))
     return epsilon
 
-##Read the stream out of Sckit multiflow #####################################
-#stream = FileStream("wifi.csv")
-#df_dat = pd.read_csv('Wifi_test.csv')
-#df = df_dat.to_numpy()
-#df_dat = pd.read_csv('wifi_fake_bubble_test.csv')
-#stream = FileStream("wifi_fake_bubble.csv")
-#df = df_dat.to_numpy() 
+#######################  Read the stream  #####################################
+
 csvName = 'ecounter_time.csv'
 #csvName = 'wifi_fake_bubble_test.csv'
 stream = FileStream(csvName)
@@ -68,19 +62,18 @@ Col2 = 0
 timeColNum = 2
 
 
+######################  for all data points in the window  ####################
 
-
-#windowsize = 100
-# Window 1 onwards #######################################################################
-ght = 1
+gnw = 1
 X = []
-while(ght<150):  
-#while(stream.has_more_samples()):
-###%%%# for window 1 only #############################################################################
-    if ght ==1:        
+#while(gnw<1500):  
+while(stream.has_more_samples()):
+    
+######################   Window 1 onwards #####################################
+    if gnw == 1:        
         c = df[:,2].reshape((-1,1))
         start_time = c[0]
-        time_period = 3600*20 #second
+        time_period = 3600*7 #second
         windowsize = getwindowsize(start_time, time_period)
 #        windowsize = 1000 
         X = stream.next_sample(windowsize)
@@ -88,15 +81,15 @@ while(ght<150):
         T = X[0]
         a = T[:,Col1].reshape((-1,1))
         b = T[:,Col2].reshape((-1,1))
-        c = df[:,timeColNum].reshape((-1,1)) # todo: delete df
-        ####################
-        max_a = np.max(a)
-        max_b = np.max(b)
-        min_a = np.min(a)
-        min_b = np.min(b)
-        a = (a-min_a) / (max_a-min_a)
-        b = (b - min_b) / (max_b-min_b)
-        #################################
+        c = df[:,timeColNum].reshape((-1,1))
+###############################################################################
+#        max_a = np.max(a)
+#        max_b = np.max(b)
+#        min_a = np.min(a)
+#        min_b = np.min(b)
+#        a = (a-min_a) / (max_a-min_a)
+#        b = (b - min_b) / (max_b-min_b)
+###############################################################################
         X0 = np.concatenate((a,b), axis=1)
         # Compute Affinity Propagation for the first window
         af = AffinityPropagation(preference=-0, damping=.99, max_iter= 100 ).fit(X0)
@@ -105,27 +98,31 @@ while(ght<150):
         labels = af.labels_
         my_centers = af.cluster_centers_
         n_clusters_ = len(cluster_centers_indices)
-
+        branch = np.array(X0)
+        branch_label = np.array(labels)
 
         #eps = getAdaptiveThreshold()
          # set threshold equal to half or mean the maximum euclidean distance
         #eps = np.max(distance.cdist(my_centers,X0,'euclidean'))/2
-        eps = np.mean(distance.cdist(my_centers,X0,'euclidean'))
+        eps = getAdaptiveThreshold(my_centers,X0)
         print(eps)
-        ght = ght +1
+        gnw = gnw +1
     else:
+########################  Plot Window   #######################################
         
-#        plt.figure(1)
+#        plt.figure(2)
 #        plt.clf()
 #        colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
 #        for k, col in zip(range(n_clusters_), colors):
 #            class_members = labels == k
 #            cluster_center = X0[cluster_centers_indices[k]]
-#            plt.plot(X0[class_members, 0], X0[class_members, 1], col+ '+', markersize=8)
-#            plt.plot(cluster_center[0], cluster_center[1], 's', markerfacecolor=col,
-#                 markeredgecolor='k', markersize=5)   
-        
-#        plt.plot(my_centers[:,0], my_centers[:,1], 'gs', markeredgecolor='k', markersize=5) #markerfacecolor=col, 
+#            plt.plot(X0[class_members, 0], X0[class_members, 1],
+#                     col+ '+', markersize=17)
+#            plt.plot(cluster_center[0], cluster_center[1], 's', 
+#                     markerfacecolor=col,markeredgecolor='k', markersize=8)   
+###############################################################################        
+#        plt.plot(my_centers[:,0], my_centers[:,1], 'gs', markeredgecolor='k',
+#                 markersize=5) #markerfacecolor=col, 
 #        plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
 # #############################################################################
         windowsize = getwindowsize(start_time, time_period)
@@ -133,65 +130,69 @@ while(ght<150):
   
         if windowsize == 0:
             X = stream.next_sample(1)
-            ght = ght +1
+            gnw = gnw +1
             continue
         X = stream.next_sample(windowsize)
         T = X[0]
         a = T[:,Col1].reshape((-1,1))
         b = T[:,Col2].reshape((-1,1))
-        max_a = np.max(a)
-        max_b = np.max(b)
-        min_a = np.min(a)
-        min_b = np.min(b)
-        a = (a-min_a) / (max_a-min_a)
-        b = (b - min_b) / (max_b-min_b)
+        
+#        max_a = np.max(a)
+#        max_b = np.max(b)
+#        min_a = np.min(a)
+#        min_b = np.min(b)
+#        a = (a-min_a) / (max_a-min_a)
+#        b = (b - min_b) / (max_b-min_b)
         
         X = np.concatenate((a,b), axis=1) 
         
-        
+#################      Test Data    ###########################################       
 #         df
     #    X = X + np.random.normal(0,0.5,np.shape(X)) #Noise added
-    #    X = X + np.sin(ght)+ np.random.normal(0,0.00025,np.shape(X)) # oscillating cluster location    
-    #    X = X*2*np.sin(ght)                            # Changing cluster size,
-    #    X = X*ght                            # Changing cluster size,
-#        sft = ght*0.91 + np.random.normal(0,0.007,1) #concept-drift
+    #    X = X + np.sin(gnw)+ np.random.normal(0,0.00025,np.shape(X)) # oscillating cluster location    
+    #    X = X*2*np.sin(gnw)                            # Changing cluster size,
+    #    X = X*gnw                            # Changing cluster size,
+#        sft = gnw*0.91 + np.random.normal(0,0.007,1) #concept-drift
 #        X = X + sft  # random Shift added    
-        
+###############################################################################
+##################      plot Windows  #########################################        
         plt.figure(1)
         plt.clf()
         colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
         for k, col in zip(range(n_clusters_), colors):
             class_members = labels == k
             cluster_center = X0[cluster_centers_indices[k]]
-            plt.plot(X0[class_members, 0], X0[class_members, 1], col+ '+', markersize=8)
-            plt.plot(cluster_center[0], cluster_center[1], 's', markerfacecolor=col,
-                     markeredgecolor='k', markersize=5)   
+            plt.plot(X0[class_members, 0], X0[class_members, 1], 
+                     col+ '+', markersize=8)
+            plt.plot(cluster_center[0], cluster_center[1], 's',
+                     markerfacecolor=col, markeredgecolor='k', markersize=5)   
             
-        plt.plot(my_centers[:,0], my_centers[:,1], 'gs', markeredgecolor='k', markersize=5) #markerfacecolor=col, 
+        plt.plot(my_centers[:,0], my_centers[:,1], 'gs',
+                 markeredgecolor='k', markersize=5) #markerfacecolor=col, 
         plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
         plt.pause(0.02)
-        
+
+##############    usually for the last window with less number of points ######        
         if np.size(X, axis =0) < windowsize: #count the x-->raws
             break
-#        receiveddata = np.concatenate((receiveddata, X))
-#        
-#        D = distance_matrix(receiveddata, my_centers)
+##############   Distance calculation:each data point from centroids ##########
         outs = 0
         outpoint = []
         for i in range(windowsize):
             ed = [0]*n_clusters_   
-    #        for kk in range(n_clusters_):    
-    #            ed[kk] = distance.euclidean(my_centers[kk,:],X[i])
+
             nxpnt = X[i].reshape(1,2)
             ed = distance.cdist(my_centers,nxpnt,'euclidean')     
-    #        idx = np.argmin(ed)    
-    #        threshold = getAdaptiveThreshold(D, idx)
-    #        print(threshold)
+
             if min(ed) > eps:
                 outs = outs +1
                 outpoint.append(X[i])
     #            print("TEST***************")
-                
+            else:
+                branch = np.concatenate((branch , np.reshape(X[i,:],(-1,2))))
+#                branch_label = np.concatenate((branch_label , np.reshape(idx,(-1))))
+
+################  AP on Outs ##################################################                
         if outs > 0:
             print(outs)
             Y=np.array(outpoint)        
@@ -214,12 +215,12 @@ while(ght<150):
     #        else:
     #           eps = (int_eps + eps)/2 # If the new thresholds are smaller then this indicates 
                                    # that there might be smaller clusters away from the original clusters            
-        ght = ght +1
+        gnw = gnw +1
         print(eps)
     
 ### Macro Cluster after AP restart    
 #wtmic = # weghted macro
-af_mac = AffinityPropagation(preference= -8, damping=.8, max_iter= 100 ).fit(my_centers)
+af_mac = AffinityPropagation(preference= -8, damping=.6, max_iter= 100 ).fit(my_centers)
 cluster_centers_indices_mac = af_mac.cluster_centers_indices_
 #labels_mac = af_mac.cluster_centers_
 labelsm = af_mac.labels_
@@ -239,9 +240,9 @@ colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
 cluster_center = my_centers[cluster_centers_indices_mac]
 
 #plt.scatter(df[:,0],df[:,1])
-
-plt.scatter(my_centers[:,0], my_centers[:,1], linewidth=2,facecolors='none', s=100, edgecolor="silver")
-plt.scatter(cluster_center[:,0],cluster_center[:,1], c='orangered',marker='+', s=1500, alpha=0.9)
+plt.scatter(df[:,1],df[:,0], s= 2, edgecolor="silver" )
+plt.scatter(my_centers[:,0], my_centers[:,1], linewidth=2,facecolors='none', s=100, edgecolor="royalblue")
+plt.scatter(cluster_center[:,0],cluster_center[:,1], c='r',marker='+', s=1500, alpha=0.9)
 
 
 #plt.plot(cluster_center[:,0],cluster_center[:,1], '+' , markerfacecolor='r', markersize=80 )
@@ -269,15 +270,15 @@ plt.show()
     
 # #############################################################################
 # =============================================================================
-#print("Processing time: %s seconds" % (time.time() - start_time))
-#
-##Profiling and memory usage--------------------------------------------------
-#process = psutil.Process(os.getpid())
-#print("Memory Consumption:",process.memory_info().rss, 'bytes')   
-#M= process.memory_info().rss /1000000
-#print('(Or Megabyte:', M,')')
-#
-#cProfile.run('re.compile("foo|bar")')
+print("Processing time: %s seconds" % (time.time() - start_time))
+
+#Profiling and memory usage--------------------------------------------------
+process = psutil.Process(os.getpid())
+print("Memory Consumption:",process.memory_info().rss, 'bytes')   
+M= process.memory_info().rss /1000000
+print('(Or Megabyte:', M,')')
+
+cProfile.run('re.compile("foo|bar")')
 
 # =============================================================================
 
@@ -286,51 +287,10 @@ plt.show()
 #print('Davies-Bouldin Index Micro:',davies_bouldin_score(Y, abel_out))
 #print('Calinski-Harabasz Index Micro:',metrics.calinski_harabasz_score(Y, abel_out))
 ###############################################################################
-#print('Calinski-Harabasz Index Macro:',metrics.calinski_harabasz_score(my_centers, labelsm))  
-#print('Silhouette Coefficient Macro:',metrics.silhouette_score(my_centers, labelsm, metric='euclidean'))
-#print('Davies-Bouldin Index Macro:',davies_bouldin_score(my_centers, labelsm))
-#cProfile.run('re.compile("foo|bar")')
+print('Calinski-Harabasz Index Macro:',metrics.calinski_harabasz_score(my_centers, labelsm))  
+print('Silhouette Coefficient Macro:',metrics.silhouette_score(my_centers, labelsm, metric='euclidean'))
+print('Davies-Bouldin Index Macro:',davies_bouldin_score(my_centers, labelsm))
+
 ###############################################################################
+#cProfile.run('re.compile("foo|bar")')
 
-
-# #############################################################################
-# Compute Affinity Propagation
-#X = df[:3000,0:2]
-#af = AffinityPropagation(preference=-23, damping=.96, max_iter= 100 ).fit(X)
-#cluster_centers_indices = af.cluster_centers_indices_
-#labels = af.labels_
-#
-#n_clusters_ = len(cluster_centers_indices)
-#
-#print('Estimated number of clusters: %d' % n_clusters_)
-##print("Homogeneity: %0.3f" % metrics.homogeneity_score(labels_true, labels))
-##print("Completeness: %0.3f" % metrics.completeness_score(labels_true, labels))
-##print("V-measure: %0.3f" % metrics.v_measure_score(labels_true, labels))
-##print("Adjusted Rand Index: %0.3f"
-##      % metrics.adjusted_rand_score(labels_true, labels))
-##print("Adjusted Mutual Information: %0.3f"
-##      % metrics.adjusted_mutual_info_score(labels_true, labels))
-#'''print("Silhouette Coefficient: %0.3f"
-#      % metrics.silhouette_score(X, labels, metric='sqeuclidean'))'''
-#
-## #############################################################################
-## Plot result
-#
-#plt.figure(4)
-#plt.clf()
-#
-#colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-#for k, col in zip(range(n_clusters_), colors):
-#    class_members = labels == k
-#    cluster_center = X[cluster_centers_indices[k]]
-#    plt.plot(X[class_members, 1], X[class_members, 0], col + '.')
-#    plt.plot(cluster_center[1], cluster_center[0], 'o', markerfacecolor=col,
-#             markeredgecolor='k', markersize=14)
-##    for x in X[class_members]:
-##        plt.plot([cluster_center[0], x[0]], [cluster_center[1], x[1]], col)
-#
-#plt.title('AP Clustering Algorthm, one week of Wifi data')
-#plt.xlabel('SPACE ID')
-#plt.ylabel('PHONE ID')
-#plt.show()
-################################################################
