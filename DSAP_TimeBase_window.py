@@ -44,7 +44,7 @@ def getwindowsize(start_time, time_period):
         idx2 = 0
     return idx2 - idx1
 
-
+#numbr of data point in each window
 
 def getAdaptiveThreshold(X,Y):
     epsilon = np.mean(distance.cdist(X,Y,'euclidean'))
@@ -69,7 +69,7 @@ X = []
 #while(gnw<1500):  
 while(stream.has_more_samples()):
     
-######################   Window 1 onwards #####################################
+######################   Window 1 onwards-- INITIALIZATION#####################
     if gnw == 1:        
         c = df[:,2].reshape((-1,1))
         start_time = c[0]
@@ -91,7 +91,7 @@ while(stream.has_more_samples()):
 #        b = (b - min_b) / (max_b-min_b)
 ###############################################################################
         X0 = np.concatenate((a,b), axis=1)
-        # Compute Affinity Propagation for the first window
+        # Compute Affinity Propagation for the first window(X0)
         af = AffinityPropagation(preference=-0, damping=.99, max_iter= 100 ).fit(X0)
         #af = AffinityPropagation(preference=-25, damping=.56, max_iter= 100 ).fit(X)
         cluster_centers_indices = af.cluster_centers_indices_
@@ -125,6 +125,7 @@ while(stream.has_more_samples()):
 #                 markersize=5) #markerfacecolor=col, 
 #        plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
 # #############################################################################
+        #X = current window
         windowsize = getwindowsize(start_time, time_period)
         start_time = start_time + time_period
   
@@ -175,15 +176,17 @@ while(stream.has_more_samples()):
 ##############    usually for the last window with less number of points ######        
         if np.size(X, axis =0) < windowsize: #count the x-->raws
             break
-##############   Distance calculation:each data point from centroids ##########
+#Comparison STEP -   Distance calculation:each data point from centroids #####
         outs = 0
         outpoint = []
         for i in range(windowsize):
             ed = [0]*n_clusters_   
 
             nxpnt = X[i].reshape(1,2)
+            #Distance Arry of each datapoint and all centroids
             ed = distance.cdist(my_centers,nxpnt,'euclidean')     
-
+            
+            #min all distances find the closest centroid
             if min(ed) > eps:
                 outs = outs +1
                 outpoint.append(X[i])
@@ -192,7 +195,7 @@ while(stream.has_more_samples()):
                 branch = np.concatenate((branch , np.reshape(X[i,:],(-1,2))))
 #                branch_label = np.concatenate((branch_label , np.reshape(idx,(-1))))
 
-################  AP on Outs ##################################################                
+################  AP on Outs - ACTIVATEAP   ###################################                
         if outs > 0:
             print(outs)
             Y=np.array(outpoint)        
@@ -207,7 +210,9 @@ while(stream.has_more_samples()):
             rtb=1
             
             # set interim threshold equal to half the maximum euclidean distance of the reposditry points from the clusters
-            int_eps = np.max(distance.cdist(out_centers,Y,'euclidean')) # Get interim threshold values from repository clusters
+            int_eps = getAdaptiveThreshold(out_centers,Y)
+            
+#           int_eps = np.max(distance.cdist(out_centers,Y,'euclidean')) # Get interim threshold values from repository clusters
             print('int_eps',int_eps)
          ## Update cluster threshold size at the end of each window
             if eps < int_eps:
