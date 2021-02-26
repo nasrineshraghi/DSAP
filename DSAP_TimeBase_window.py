@@ -167,7 +167,7 @@ while(stream.has_more_samples()):
                      col+ '+', markersize=8)
             plt.plot(cluster_center[0], cluster_center[1], 's',
                      markerfacecolor=col, markeredgecolor='k', markersize=5)   
-            
+#            tup_cent = (my_centers,len(class_members))
         plt.plot(my_centers[:,0], my_centers[:,1], 'gs',
                  markeredgecolor='k', markersize=5) #markerfacecolor=col, 
         plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
@@ -187,6 +187,7 @@ while(stream.has_more_samples()):
             ed = distance.cdist(my_centers,nxpnt,'euclidean')     
             
             #min all distances find the closest centroid
+#            clclusind = np.argmin(ed) # index of closest cluster
             if min(ed) > eps:
                 outs = outs +1
                 outpoint.append(X[i])
