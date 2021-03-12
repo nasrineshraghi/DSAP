@@ -25,7 +25,7 @@ import psutil
 from sklearn import metrics
 from scipy.spatial import distance
 from skmultiflow.data.file_stream import FileStream
-start_time = time.time()
+start_time_Org = time.time()
 from sklearn.metrics import davies_bouldin_score
 from sklearn.metrics import pairwise_distances
 from scipy.spatial import distance_matrix
@@ -43,16 +43,16 @@ def getwindowsize(start_time, time_period):
         idx1 = 0
         idx2 = 0
     return idx2 - idx1
+#return numbr of data point in each window
 
-#numbr of data point in each window
 
 def getAdaptiveThreshold(X,Y):
     epsilon = np.mean(distance.cdist(X,Y,'euclidean'))
     return epsilon
-
+#return the average Euc distance of points
 #######################  Read the stream  #####################################
 
-csvName = 'ecounter_time.csv'
+csvName = 'monthbefore.csv'
 #csvName = 'wifi_fake_bubble_test.csv'
 stream = FileStream(csvName)
 df_dat = pd.read_csv(csvName)
@@ -64,18 +64,25 @@ timeColNum = 2
 
 ######################  for all data points in the window  ####################
 
-gnw = 1
+gnw = 0    
+c = df[:,2].reshape((-1,1))
+start_time = c[0]
 X = []
 #while(gnw<1500):  
 while(stream.has_more_samples()):
-    
-######################   Window 1 onwards-- INITIALIZATION#####################
+    time_period = 3600*4 #second
+
+    windowsize = getwindowsize(start_time, time_period)
+    start_time = start_time + time_period
+#        windowsize = 100
+    if windowsize <10:
+        X = stream.next_sample(1)
+        continue
+    else:
+        gnw = gnw +1
+        
+######################   INITIALIZATION: Window 1 onwards   ###################
     if gnw == 1:        
-        c = df[:,2].reshape((-1,1))
-        start_time = c[0]
-        time_period = 3600*7 #second
-        windowsize = getwindowsize(start_time, time_period)
-#        windowsize = 1000 
         X = stream.next_sample(windowsize)
         
         T = X[0]
@@ -92,21 +99,20 @@ while(stream.has_more_samples()):
 ###############################################################################
         X0 = np.concatenate((a,b), axis=1)
         # Compute Affinity Propagation for the first window(X0)
-        af = AffinityPropagation(preference=-0, damping=.99, max_iter= 100 ).fit(X0)
+        af = AffinityPropagation(preference=-2.5, damping=.9, max_iter= 100 ).fit(X0)
         #af = AffinityPropagation(preference=-25, damping=.56, max_iter= 100 ).fit(X)
         cluster_centers_indices = af.cluster_centers_indices_
         labels = af.labels_
         my_centers = af.cluster_centers_
         n_clusters_ = len(cluster_centers_indices)
         branch = np.array(X0)
-        branch_label = np.array(labels)
 
         #eps = getAdaptiveThreshold()
          # set threshold equal to half or mean the maximum euclidean distance
         #eps = np.max(distance.cdist(my_centers,X0,'euclidean'))/2
         eps = getAdaptiveThreshold(my_centers,X0)
         print(eps)
-        gnw = gnw +1
+#        gnw = gnw +1
     else:
 ########################  Plot Window   #######################################
         
@@ -126,13 +132,14 @@ while(stream.has_more_samples()):
 #        plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
 # #############################################################################
         #X = current window
-        windowsize = getwindowsize(start_time, time_period)
-        start_time = start_time + time_period
+#        windowsize = getwindowsize(start_time, time_period)
+##        windowsize = 18500
+#        start_time = start_time + time_period
   
-        if windowsize == 0:
-            X = stream.next_sample(1)
-            gnw = gnw +1
-            continue
+#        if windowsize <10:
+#            X = stream.next_sample(1)
+#            gnw = gnw +1
+#            continue
         X = stream.next_sample(windowsize)
         T = X[0]
         a = T[:,Col1].reshape((-1,1))
@@ -176,7 +183,8 @@ while(stream.has_more_samples()):
 ##############    usually for the last window with less number of points ######        
         if np.size(X, axis =0) < windowsize: #count the x-->raws
             break
-#Comparison STEP -   Distance calculation:each data point from centroids #####
+#######################   Comparison STEP   ###################################
+# Distance calculation:each data point from centroids #####
         outs = 0
         outpoint = []
         for i in range(windowsize):
@@ -226,7 +234,9 @@ while(stream.has_more_samples()):
     
 ### Macro Cluster after AP restart    
 #wtmic = # weghted macro
-af_mac = AffinityPropagation(preference= -8, damping=.6, max_iter= 100 ).fit(my_centers)
+#af_mac = AffinityPropagation(preference= -8, damping=.6, max_iter= 100 ).fit(my_centers) # during one week
+af_mac = AffinityPropagation(preference= -4, damping=.99, max_iter= 100 ).fit(my_centers)
+
 cluster_centers_indices_mac = af_mac.cluster_centers_indices_
 #labels_mac = af_mac.cluster_centers_
 labelsm = af_mac.labels_
@@ -249,12 +259,12 @@ cluster_center = my_centers[cluster_centers_indices_mac]
 plt.scatter(df[:,1],df[:,0], s= 2, edgecolor="silver" )
 plt.scatter(my_centers[:,0], my_centers[:,1], linewidth=2,facecolors='none', s=100, edgecolor="royalblue")
 plt.scatter(cluster_center[:,0],cluster_center[:,1], c='r',marker='+', s=1500, alpha=0.9)
-
+#plt.scatter(1,5, c='r',marker='+', s=1500, alpha=0.9)
 
 #plt.plot(cluster_center[:,0],cluster_center[:,1], '+' , markerfacecolor='r', markersize=80 )
 
 
-plt.title('DSAP Micro-Macro Clustering Result')
+plt.title('DSAP Micro-Macro Clustering Result:Before Intervention')
 #plt.title('%d' % n_clusters_)
 
 
@@ -271,12 +281,46 @@ frame.axes.get_yaxis().set_visible(True)
 #           "Level4-3\nSouth", "Level5-4\nNorth", "Level5-4\nSouth"])
 
 plt.show()
+###############################################################################
+
+#3D Evolution 
+
+
+#from mpl_toolkits.mplot3d import axes3d
+#from matplotlib import cm
+#
+#x = my_centers[:,0]
+#y = my_centers[:,1]
+#tm = df_dat.Timestamp
+#z = np.array(tm)
+#omn = np.ones(len(x))
+#on = np.array([omn])
+#Z = on.T@z
+#X,Y = np.meshgrid(x,y)
+#print(Z.shape)
+#
+#fig = plt.figure(figsize=(30,10))
+#ax = fig.add_subplot(111, projection='3d')
+#
+## Plot a 3D surface/scatter
+##ax.plot_surface(Z, Y, X, cmap=cm.coolwarm,
+#plt.fig(4)                 #    linewidth=0, antialiased=False)
+#ax.scatter(z, y, x, c = x, marker='o', s=300, cmap="Spectral")
+#p = ax.scatter(z,y,x, c = x, marker='o', s=300, cmap="Spectral")
+#fig.colorbar(p)
+#ax.set_xlabel('Time(Hr)')
+#ax.set_ylabel('Level Number')
+#ax.set_ylabel('Cluster Centers-Num of People')
+#ax.set_title('Variation of Cluster Centers with Time')
+#ax.view_init(88, 270)
+#plt.show()
+#fig.savefig('ClusterCentCount_3.png',bbox_inches='tight', dpi=400)
 
 
     
 # #############################################################################
 # =============================================================================
-print("Processing time: %s seconds" % (time.time() - start_time))
+print("Processing time: %s seconds" % (time.time() - start_time_Org))
 
 #Profiling and memory usage--------------------------------------------------
 process = psutil.Process(os.getpid())
@@ -287,6 +331,7 @@ print('(Or Megabyte:', M,')')
 cProfile.run('re.compile("foo|bar")')
 
 # =============================================================================
+
 
     
 #print('Silhouette Coefficient Micro:',metrics.silhouette_score(Y, abel_out, metric='euclidean'))
