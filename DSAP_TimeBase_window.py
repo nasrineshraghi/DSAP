@@ -34,7 +34,7 @@ matplotlib.use('Qt5Agg')
 
 
 ###################  Function defenitions #####################################
-
+# Return the number of points for each window 
 def getwindowsize(start_time, time_period): 
     try:
         idx1 = np.where(df[:,2] >= start_time )[0][0] #first event, condition
@@ -43,68 +43,61 @@ def getwindowsize(start_time, time_period):
         idx1 = 0
         idx2 = 0
     return idx2 - idx1
-#return numbr of data point in each window
 
 
+#return the average Euc distance of points
 def getAdaptiveThreshold(X,Y):
     epsilon = np.mean(distance.cdist(X,Y,'euclidean'))
     return epsilon
-#return the average Euc distance of points
 #######################  Read the stream  #####################################
-
+# 2 file? one for time one for stream, make it one later
 csvName = 'monthbefore.csv'
-#csvName = 'wifi_fake_bubble_test.csv'
 stream = FileStream(csvName)
 df_dat = pd.read_csv(csvName)
 df = df_dat.to_numpy()
+
+#Col1,2 has a table
 Col1 = 1
 Col2 = 0
 timeColNum = 2
 
-
 ######################  for all data points in the window  ####################
-
-gnw = 0    
-c = df[:,2].reshape((-1,1))
-start_time = c[0]
+##gnw is the window counter if 1 --> first window
+gnw = 1
 X = []
+## if we have more sample:
 #while(gnw<1500):  
 while(stream.has_more_samples()):
-    time_period = 3600*4 #second
-
-    windowsize = getwindowsize(start_time, time_period)
-    start_time = start_time + time_period
-#        windowsize = 100
-    if windowsize <10:
-        X = stream.next_sample(1)
-        continue
-    else:
-        gnw = gnw +1
-        
+    
 ######################   INITIALIZATION: Window 1 onwards   ###################
     if gnw == 1:        
+        c = df[:,2].reshape((-1,1))
+        ##first time start_time is the first data point's time
+        start_time = c[0]
+        time_period = 3600*10 #second
+
+        windowsize = getwindowsize(start_time, time_period)
+#        windowsize = 100
         X = stream.next_sample(windowsize)
         
         T = X[0]
         a = T[:,Col1].reshape((-1,1))
         b = T[:,Col2].reshape((-1,1))
         c = df[:,timeColNum].reshape((-1,1))
-###############################################################################
-#        max_a = np.max(a)
-#        max_b = np.max(b)
-#        min_a = np.min(a)
-#        min_b = np.min(b)
-#        a = (a-min_a) / (max_a-min_a)
-#        b = (b - min_b) / (max_b-min_b)
-###############################################################################
+
         X0 = np.concatenate((a,b), axis=1)
         # Compute Affinity Propagation for the first window(X0)
-        af = AffinityPropagation(preference=-2.5, damping=.9, max_iter= 100 ).fit(X0)
+        af = AffinityPropagation(preference=-2.5, damping=.9, max_iter= 100).fit(X0)
         #af = AffinityPropagation(preference=-25, damping=.56, max_iter= 100 ).fit(X)
         cluster_centers_indices = af.cluster_centers_indices_
         labels = af.labels_
         my_centers = af.cluster_centers_
+        my_centers = my_centers.astype(int)
         n_clusters_ = len(cluster_centers_indices)
+        # ADD Time to centroids  and keeps in the separate array      
+        t_centers = np.ones(len(my_centers))*start_time
+        t_centers = t_centers.astype(int)
+        
         branch = np.array(X0)
 
         #eps = getAdaptiveThreshold()
@@ -112,46 +105,39 @@ while(stream.has_more_samples()):
         #eps = np.max(distance.cdist(my_centers,X0,'euclidean'))/2
         eps = getAdaptiveThreshold(my_centers,X0)
         print(eps)
-#        gnw = gnw +1
+        gnw = gnw +1
     else:
-########################  Plot Window   #######################################
+########################  Plot first Window   #######################################
         
-#        plt.figure(2)
-#        plt.clf()
-#        colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-#        for k, col in zip(range(n_clusters_), colors):
-#            class_members = labels == k
-#            cluster_center = X0[cluster_centers_indices[k]]
-#            plt.plot(X0[class_members, 0], X0[class_members, 1],
-#                     col+ '+', markersize=17)
-#            plt.plot(cluster_center[0], cluster_center[1], 's', 
-#                     markerfacecolor=col,markeredgecolor='k', markersize=8)   
-###############################################################################        
+        plt.figure(2)
+        plt.clf()
+        colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
+        for k, col in zip(range(n_clusters_), colors):
+            class_members = labels == k
+            cluster_center = X0[cluster_centers_indices[k]]
+            plt.plot(X0[class_members, 0], X0[class_members, 1],
+                     col+ '+', markersize=17)
+            plt.plot(cluster_center[0], cluster_center[1], 's', 
+                     markerfacecolor=col,markeredgecolor='k', markersize=8)   
+##############################################################################        
 #        plt.plot(my_centers[:,0], my_centers[:,1], 'gs', markeredgecolor='k',
 #                 markersize=5) #markerfacecolor=col, 
 #        plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
 # #############################################################################
         #X = current window
-#        windowsize = getwindowsize(start_time, time_period)
-##        windowsize = 18500
-#        start_time = start_time + time_period
+        windowsize = getwindowsize(start_time, time_period)
+#        windowsize = 18500
+        start_time = start_time + time_period
   
-#        if windowsize <10:
-#            X = stream.next_sample(1)
-#            gnw = gnw +1
-#            continue
+        if windowsize == 0:
+            X = stream.next_sample(1)
+            gnw = gnw +1
+            continue
         X = stream.next_sample(windowsize)
         T = X[0]
         a = T[:,Col1].reshape((-1,1))
         b = T[:,Col2].reshape((-1,1))
-        
-#        max_a = np.max(a)
-#        max_b = np.max(b)
-#        min_a = np.min(a)
-#        min_b = np.min(b)
-#        a = (a-min_a) / (max_a-min_a)
-#        b = (b - min_b) / (max_b-min_b)
-        
+
         X = np.concatenate((a,b), axis=1) 
         
 #################      Test Data    ###########################################       
@@ -201,9 +187,10 @@ while(stream.has_more_samples()):
                 outpoint.append(X[i])
     #            print("TEST***************")
             else:
-                branch = np.concatenate((branch , np.reshape(X[i,:],(-1,2))))
-#                branch_label = np.concatenate((branch_label , np.reshape(idx,(-1))))
-
+                #branch = np.concatenate((branch , np.reshape(X[i,:],(-1,2))))
+                ind = np.argmin(ed)          
+                t_centers[ind] = start_time
+        
 ################  AP on Outs - ACTIVATEAP   ###################################                
         if outs > 0:
             print(outs)
@@ -213,6 +200,10 @@ while(stream.has_more_samples()):
             #abel_out = f.labels_
     #        my_centers = out_centers
             my_centers = np.append(my_centers,out_centers,axis=0)
+            new_t_center = np.ones(len(out_centers))*start_time
+            new_t_center = new_t_center.astype(int)
+#            out_start_time = np.concatenate((out_centers, new_t_center.T), axis=1)
+            t_centers = np.concatenate((t_centers, new_t_center), axis=0)
     #            cluster_center = X[cluster_centers_indices]
             plt.plot(Y[:, 0], Y[:, 1], 'r+', markersize=8)
             plt.plot(out_centers[:,0], out_centers[:,1], 'bs')
@@ -231,6 +222,22 @@ while(stream.has_more_samples()):
                                    # that there might be smaller clusters away from the original clusters            
         gnw = gnw +1
         print(eps)
+    damp = 5
+    remain_centers = np.ones(len(t_centers))
+    for i in range(len(t_centers)):
+        if t_centers[i] < start_time- damp*time_period:
+            remain_centers[i] = 0
+    my_centers = my_centers[remain_centers==1]
+    t_centers = t_centers[remain_centers==1]
+    
+    windowsize = getwindowsize(start_time, time_period*2)
+    n_remaining_samples = stream.n_remaining_samples()
+    if(n_remaining_samples <= windowsize):
+        break
+    
+    
+        
+    
     
 ### Macro Cluster after AP restart    
 #wtmic = # weghted macro
@@ -238,9 +245,15 @@ while(stream.has_more_samples()):
 af_mac = AffinityPropagation(preference= -4, damping=.99, max_iter= 100 ).fit(my_centers)
 
 cluster_centers_indices_mac = af_mac.cluster_centers_indices_
-#labels_mac = af_mac.cluster_centers_
-labelsm = af_mac.labels_
-my_label = af_mac.predict(df[:,0:2])
+cluster_centers_mac = af_mac.cluster_centers_
+
+
+remaining_samples = stream.next_sample(n_remaining_samples)
+T = remaining_samples[0]
+a = T[:,Col1].reshape((-1,1))
+b = T[:,Col2].reshape((-1,1))
+remaining_samples = np.concatenate((a,b), axis=1) 
+my_label = af_mac.predict(remaining_samples)
 ##############################################################################
 ###############################################################################
 n_cluster_ = len(cluster_centers_indices_mac)
@@ -338,9 +351,9 @@ cProfile.run('re.compile("foo|bar")')
 #print('Davies-Bouldin Index Micro:',davies_bouldin_score(Y, abel_out))
 #print('Calinski-Harabasz Index Micro:',metrics.calinski_harabasz_score(Y, abel_out))
 ###############################################################################
-print('Calinski-Harabasz Index Macro:',metrics.calinski_harabasz_score(my_centers, labelsm))  
-print('Silhouette Coefficient Macro:',metrics.silhouette_score(my_centers, labelsm, metric='euclidean'))
-print('Davies-Bouldin Index Macro:',davies_bouldin_score(my_centers, labelsm))
+print('Calinski-Harabasz Index Macro:',metrics.calinski_harabasz_score(remaining_samples, my_label))  
+print('Silhouette Coefficient Macro:',metrics.silhouette_score(remaining_samples, my_label, metric='euclidean'))
+print('Davies-Bouldin Index Macro:',davies_bouldin_score(remaining_samples, my_label))
 
 ###############################################################################
 #cProfile.run('re.compile("foo|bar")')
