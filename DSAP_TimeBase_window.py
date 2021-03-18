@@ -16,10 +16,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from itertools import cycle
-import datetime
 import os
 import cProfile
-import re
 import time
 import psutil
 from sklearn import metrics
@@ -74,7 +72,7 @@ while(stream.has_more_samples()):
         c = df[:,2].reshape((-1,1))
         ##first time start_time is the first data point's time
         start_time = c[0]
-        time_period = 3600*10 #second
+        time_period = 3600*2 #second
 
         windowsize = getwindowsize(start_time, time_period)
 #        windowsize = 100
@@ -88,51 +86,50 @@ while(stream.has_more_samples()):
         X0 = np.concatenate((a,b), axis=1)
         # Compute Affinity Propagation for the first window(X0)
         af = AffinityPropagation(preference=-2.5, damping=.9, max_iter= 100).fit(X0)
-        #af = AffinityPropagation(preference=-25, damping=.56, max_iter= 100 ).fit(X)
         cluster_centers_indices = af.cluster_centers_indices_
         labels = af.labels_
         my_centers = af.cluster_centers_
         my_centers = my_centers.astype(int)
         n_clusters_ = len(cluster_centers_indices)
-        # ADD Time to centroids  and keeps in the separate array      
+        # ADD Time to centroids  and keeps in the separate array 
+        #size is equal to my_centroids
+        # time for all is equal to start time caz all of them are in one window
         t_centers = np.ones(len(my_centers))*start_time
         t_centers = t_centers.astype(int)
-        
-        branch = np.array(X0)
-
-        #eps = getAdaptiveThreshold()
-         # set threshold equal to half or mean the maximum euclidean distance
-        #eps = np.max(distance.cdist(my_centers,X0,'euclidean'))/2
+    
+         # set the initial threshold equal to mean the maximum euclidean distance
         eps = getAdaptiveThreshold(my_centers,X0)
         print(eps)
         gnw = gnw +1
-    else:
-########################  Plot first Window   #######################################
+########################  Plot 1st Window   #######################################
         
-        plt.figure(2)
-        plt.clf()
-        colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-        for k, col in zip(range(n_clusters_), colors):
-            class_members = labels == k
-            cluster_center = X0[cluster_centers_indices[k]]
-            plt.plot(X0[class_members, 0], X0[class_members, 1],
-                     col+ '+', markersize=17)
-            plt.plot(cluster_center[0], cluster_center[1], 's', 
-                     markerfacecolor=col,markeredgecolor='k', markersize=8)   
-##############################################################################        
+#        plt.figure(1)
+#        plt.clf()
+#        colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
+#        for k, col in zip(range(n_clusters_), colors):
+#            class_members = labels == k
+#            cluster_center = X0[cluster_centers_indices[k]]
+#            plt.plot(X0[class_members, 0], X0[class_members, 1],
+#                     col+ '+', markersize=17)
+#            plt.plot(cluster_center[0], cluster_center[1], 's', 
+#                     markerfacecolor=col,markeredgecolor='k', markersize=8)   
+###############################################################################        
 #        plt.plot(my_centers[:,0], my_centers[:,1], 'gs', markeredgecolor='k',
 #                 markersize=5) #markerfacecolor=col, 
 #        plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
-# #############################################################################
-        #X = current window
+# ###########   From second window and so on ...  #############################
+    else:
+        #X = current window data points
         windowsize = getwindowsize(start_time, time_period)
 #        windowsize = 18500
+        #calculate new start_time for each window
         start_time = start_time + time_period
-  
+        # If there is no data point in the window:
         if windowsize == 0:
             X = stream.next_sample(1)
             gnw = gnw +1
             continue
+        # Now we have data points in the window
         X = stream.next_sample(windowsize)
         T = X[0]
         a = T[:,Col1].reshape((-1,1))
@@ -150,21 +147,21 @@ while(stream.has_more_samples()):
 #        X = X + sft  # random Shift added    
 ###############################################################################
 ##################      plot Windows  #########################################        
-        plt.figure(1)
+        plt.figure(2)
         plt.clf()
         colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
         for k, col in zip(range(n_clusters_), colors):
             class_members = labels == k
             cluster_center = X0[cluster_centers_indices[k]]
             plt.plot(X0[class_members, 0], X0[class_members, 1], 
-                     col+ '+', markersize=8)
+                     col+ '+', markersize=14)
             plt.plot(cluster_center[0], cluster_center[1], 's',
-                     markerfacecolor=col, markeredgecolor='k', markersize=5)   
+                     markerfacecolor=col, markeredgecolor='k', markersize=10)   
 #            tup_cent = (my_centers,len(class_members))
         plt.plot(my_centers[:,0], my_centers[:,1], 'gs',
                  markeredgecolor='k', markersize=5) #markerfacecolor=col, 
-        plt.plot(X[:, 0], X[:, 1],  '+', markersize=8)
-        plt.pause(0.02)
+        plt.plot(X[:, 0], X[:, 1], '+', markersize=8)
+        plt.pause(0.04)
 
 ##############    usually for the last window with less number of points ######        
         if np.size(X, axis =0) < windowsize: #count the x-->raws
@@ -222,14 +219,18 @@ while(stream.has_more_samples()):
                                    # that there might be smaller clusters away from the original clusters            
         gnw = gnw +1
         print(eps)
-    damp = 5
+        
+################   Calculate the fading  ######################################
+      
+    faid = 15
     remain_centers = np.ones(len(t_centers))
     for i in range(len(t_centers)):
-        if t_centers[i] < start_time- damp*time_period:
+        if t_centers[i] < start_time- faid * time_period:
             remain_centers[i] = 0
     my_centers = my_centers[remain_centers==1]
     t_centers = t_centers[remain_centers==1]
     
+###########   Calculating the indexes based on the n latest windows ###########    
     windowsize = getwindowsize(start_time, time_period*2)
     n_remaining_samples = stream.n_remaining_samples()
     if(n_remaining_samples <= windowsize):
@@ -238,101 +239,55 @@ while(stream.has_more_samples()):
     
         
     
-    
-### Macro Cluster after AP restart    
-#wtmic = # weghted macro
-#af_mac = AffinityPropagation(preference= -8, damping=.6, max_iter= 100 ).fit(my_centers) # during one week
+###############################################################################
+################# Offline Macro-Clustering  ###################################
+###############################################################################
 af_mac = AffinityPropagation(preference= -4, damping=.99, max_iter= 100 ).fit(my_centers)
-
 cluster_centers_indices_mac = af_mac.cluster_centers_indices_
 cluster_centers_mac = af_mac.cluster_centers_
 
-
+#This is for calculating the indexes based on the remaining sample
 remaining_samples = stream.next_sample(n_remaining_samples)
 T = remaining_samples[0]
 a = T[:,Col1].reshape((-1,1))
 b = T[:,Col2].reshape((-1,1))
 remaining_samples = np.concatenate((a,b), axis=1) 
 my_label = af_mac.predict(remaining_samples)
-##############################################################################
+
 ###############################################################################
-n_cluster_ = len(cluster_centers_indices_mac)
-print('Estimated number of macro clusters: %d' % n_cluster_)
-n_cluste = len(my_centers)
-print('Estimated number of micro clusters: %d' % n_cluste)
-###############################################################################
-#2D plot
-#plt.close('all')
+########################   Plot   #############################################
+
 plt.figure(3)
 plt.clf()
 colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
 cluster_center = my_centers[cluster_centers_indices_mac]
 
 #plt.scatter(df[:,0],df[:,1])
-plt.scatter(df[:,1],df[:,0], s= 2, edgecolor="silver" )
+#plt.scatter(df[:,1],df[:,0], s= 2, edgecolor="silver" )
 plt.scatter(my_centers[:,0], my_centers[:,1], linewidth=2,facecolors='none', s=100, edgecolor="royalblue")
 plt.scatter(cluster_center[:,0],cluster_center[:,1], c='r',marker='+', s=1500, alpha=0.9)
 #plt.scatter(1,5, c='r',marker='+', s=1500, alpha=0.9)
-
 #plt.plot(cluster_center[:,0],cluster_center[:,1], '+' , markerfacecolor='r', markersize=80 )
-
-
 plt.title('DSAP Micro-Macro Clustering Result:Before Intervention')
 #plt.title('%d' % n_clusters_)
-
-
 plt.xlabel('Position')
 plt.ylabel('Count')
-
 frame =plt.gca()
 frame.axes.get_xaxis().set_visible(True)
 frame.axes.get_yaxis().set_visible(True)
-
 #plt.ylim(0,20)
-
 #plt.xticks([1,2,3,4,5,6], ["Level 2-1", "Level 3-2\nCentral", "Level 4-3\nNorth",
 #           "Level4-3\nSouth", "Level5-4\nNorth", "Level5-4\nSouth"])
-
 plt.show()
 ###############################################################################
-
-#3D Evolution 
-
-
-#from mpl_toolkits.mplot3d import axes3d
-#from matplotlib import cm
-#
-#x = my_centers[:,0]
-#y = my_centers[:,1]
-#tm = df_dat.Timestamp
-#z = np.array(tm)
-#omn = np.ones(len(x))
-#on = np.array([omn])
-#Z = on.T@z
-#X,Y = np.meshgrid(x,y)
-#print(Z.shape)
-#
-#fig = plt.figure(figsize=(30,10))
-#ax = fig.add_subplot(111, projection='3d')
-#
-## Plot a 3D surface/scatter
-##ax.plot_surface(Z, Y, X, cmap=cm.coolwarm,
-#plt.fig(4)                 #    linewidth=0, antialiased=False)
-#ax.scatter(z, y, x, c = x, marker='o', s=300, cmap="Spectral")
-#p = ax.scatter(z,y,x, c = x, marker='o', s=300, cmap="Spectral")
-#fig.colorbar(p)
-#ax.set_xlabel('Time(Hr)')
-#ax.set_ylabel('Level Number')
-#ax.set_ylabel('Cluster Centers-Num of People')
-#ax.set_title('Variation of Cluster Centers with Time')
-#ax.view_init(88, 270)
-#plt.show()
-#fig.savefig('ClusterCentCount_3.png',bbox_inches='tight', dpi=400)
-
-
-    
-# #############################################################################
-# =============================================================================
+# Number of micro and macro Clusters 
+n_cluster_ = len(cluster_centers_indices_mac)
+print('Estimated number of macro clusters: %d' % n_cluster_)
+n_cluste = len(my_centers)
+print('Estimated number of micro clusters: %d' % n_cluste)
+###############################################################################
+#############################   Evaluation Phase ##############################
+###############################################################################
 print("Processing time: %s seconds" % (time.time() - start_time_Org))
 
 #Profiling and memory usage--------------------------------------------------
@@ -341,20 +296,12 @@ print("Memory Consumption:",process.memory_info().rss, 'bytes')
 M= process.memory_info().rss /1000000
 print('(Or Megabyte:', M,')')
 
-cProfile.run('re.compile("foo|bar")')
+#cProfile.run('re.compile("foo|bar")')
 
-# =============================================================================
-
-
-    
-#print('Silhouette Coefficient Micro:',metrics.silhouette_score(Y, abel_out, metric='euclidean'))
-#print('Davies-Bouldin Index Micro:',davies_bouldin_score(Y, abel_out))
-#print('Calinski-Harabasz Index Micro:',metrics.calinski_harabasz_score(Y, abel_out))
 ###############################################################################
 print('Calinski-Harabasz Index Macro:',metrics.calinski_harabasz_score(remaining_samples, my_label))  
 print('Silhouette Coefficient Macro:',metrics.silhouette_score(remaining_samples, my_label, metric='euclidean'))
 print('Davies-Bouldin Index Macro:',davies_bouldin_score(remaining_samples, my_label))
 
 ###############################################################################
-#cProfile.run('re.compile("foo|bar")')
 
