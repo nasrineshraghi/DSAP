@@ -1,5 +1,8 @@
-# DSAP: Data Stream Affinity Propagation Clustering Algorithm
+# DSAP:  Stream Affinity Propagation Clustering Algorithm
 Cancel Changes
-This algorithm is designed for data stream clustering with the landmark time window model in two phases, online and offline mode. The DSAP data stream clustering algorithm is implemented based on the Affinity Propagation(AP) algorithm.
-The DSAP tested on two real-world datasets: people counter and Wifi fingerprinting localization datasets.
-The landmark time window is implemented for both data points and expiration window.
+This algorithm is designed for  stream clustering with the landmark time window model in two phases, online and offline mode. The DSAP  stream clustering algorithm is implemented based on the Affinity Propagation(AP) algorithm.
+The DSAP tested on two real-world sets: people counter and Wifi fingerprinting localization sets.
+The landmark time window is implemented for both  points and expiration window.
+
+
+IF you are intrested in this algorithm, please contact the owner by: nasrin.eshraghi@gmail.com 
