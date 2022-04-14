@@ -5,4 +5,4 @@ The DSAP tested on two real-world sets: people counter and Wifi fingerprinting l
 The landmark time window is implemented for both  points and expiration window.
 
 
-IF you are intrested in this algorithm, please contact the owner by: nasrin.eshraghi@gmail.com 
+If you are intrested in this algorithm, please contact the owner by: nasrin.eshraghi@gmail.com 
